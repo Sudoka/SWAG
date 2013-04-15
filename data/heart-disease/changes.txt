@@ -1,0 +1,6 @@
+cleaned-heart-disease.data contains only information from cleveland dataset
+for labels, any label of 0 was changed to -1, and values of > 0 were given a value of +1
+any instances with a missing attribute were removed.
+
+there are 297 instances
+accuracy to beat from .names file is 77 percent
