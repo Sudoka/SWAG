@@ -2,6 +2,7 @@
 import re
 import sys
 import math
+import random
 
 '''
 This program houses the classes to create classifiers by loading a collection of data vectors and labels
@@ -117,27 +118,32 @@ class kMpp:
     iter_max	- maximum amount of iterations to be used when converging
     		  clusters, by default this is set to 1024
   '''
-  def __init__(self, data, k=None, dist_met=None, iter_max=1024):
+
+  def __init__(self, data, k=None, dist_met=None, iter_max=128):
     if k == None:
-      k = int(sqrt(len(data)))
-    if dist_met == None or 'euclidean':
-      dist = lambda x, y: sum([(x[i]*y[i])**2 for i in xrange(len(x))])**.5
+      k = int(len(data)**.5)
+
+    #by default use relative dist metric
+    if dist_met == None:
+      dist = lambda x, y: sum([float(abs(x[i]-y[i])) / ((abs(x[i])+abs(y[i]) + .0001)/2) for i in xrange(len(x)-1)])
+    elif dist_met == 'euclidean':
+      dist = lambda x, y: sum([(x[i]*y[i])**2 for i in xrange(len(x)-1)])**.5
     elif dist_met == 'manhattan':
-      dist = lambda x, y: sum([abs(x[i]-y[i]) for i in xrange(len(x))])
+      dist = lambda x, y: sum([abs(x[i]-y[i]) for i in xrange(len(x)-1)])
 
 
     # this list will house clusters as elements of this list, with each cluster
     # being a list of vectors, the first element being the cluster center, and
     # following elements being a part of that cluster
-    self.clusters = converge_clusters(seed_clusters(k, data, dist), iter_max, dist, data)
+    self.clusters = self.converge_clusters(self.seed_clusters(k, data, dist), iter_max, dist, data)
     self.k = k
     self.iter_max = iter_max
 
   # seeds cluster centers as per the kMeans++ algorithm
-  def seed_clusters(k, data, dist):    
+  def seed_clusters(self, k, data, dist):    
     # Randomly pick the first cluster center, and since only one cluster center
     # exists at this point, all data vectors must be belong to this cluster
-    clusters = [random.choice(data), data[:]]
+    clusters = [[random.choice(data)] + data[:]]
 
     for i in xrange(1, k):
       cluster_dists = []
@@ -152,7 +158,7 @@ class kMpp:
       clusters = update_clusters(dist, data, clusters)
     return clusters
 
-  def converge_clusters(clusters, iter_max, dist, data):
+  def converge_clusters(self, clusters, iter_max, dist, data):
     im = iter_max-1
     prev_centers =  [cluster[0] for cluster in clusters]
 
@@ -160,69 +166,72 @@ class kMpp:
     # updates clusters with the new centers
     clusters = update_clusters(dist, data, update_centers(clusters))
 
-    # will keep updating cluster until iter_max has been hit or clusters converge
-    while im > 0 and [cluster[0] for cluster in clusters] != prev_centers:
-      prev_centers = [cluster[0] for cluster in clusters]
+    # will keep updating cluster until iter_max has been hit
+    while im > 0:
       clusters = update_clusters(dist, data, update_centers(clusters))
       im -= 1
 
+    return clusters
+      
+      
+
+def average_vector(vectors):
+  avg_vect = [0]*(len(vectors[0]))
+  for vector in vectors:
+    for i in xrange(len(vector)-1):
+      avg_vect[i] += vector[i]
+  return [avg_vect[i]/float(len(vectors)) for i in xrange(len(avg_vect)-1)]+[0]
+
+def update_centers(clusters):
+  for i in xrange(len(clusters)):
+    clusters[i][0] = average_vector(clusters[i][:])
   return clusters
-      
-      
-
-  def average_vector(vectors):
-    avg_vect = [0]*len(vectors[0])
-    for vector in vectors:
-      for i in xrange(len(vector):
-        avg_vect[i] += vector[i]
-    return [avg_vect[i]/float(len(vectors)) for i in xrange(len(avg_vect))]
-
-  def update_centers(clusters):
-    for i in xrange(len(clusters)):
-      clusters[i][0] = average_vector(clusters[i][1:])
-    return clusters
 
 
-  def update_clusters(dist, data, clusters):
-    for vector in data:
-      # chooses the closest cluster center and appends the vector to that cluster
-      clusters[closest_center(vector, cluster, dist)].append(vector)
-    return clusters
+def update_clusters(dist, data, clusters):
+  new_clusters = []
+  for cluster in clusters:
+    new_clusters.append([cluster[0]])
+  for vector in data:
+    # chooses the closest cluster center and appends the vector to that cluster
+    idx = closest_center(vector, clusters, dist)
+    new_clusters[idx].append(vector)
+  return new_clusters
     
 
-  def closest_center(vector, clusters, dist):
-    return min([(dist(vector, cluster[i][0]), i)for i in xrange(0, len(clusters))], key=lambda x: x[0])[1]
+def closest_center(vector, clusters, dist):
+  return min([(dist(vector, clusters[i][0]), i)for i in xrange(0, len(clusters))], key=lambda x: x[0])[1]
   
-  def weighted_choice(items):
-    weight_total = sum((item[1] for item in items))
-    n = random.uniform(0, weight_total)
-    for item, weight in items:
-        if n < weight:
-            return item
-        n = n - weight
-    return item
+def weighted_choice(items):
+  weight_total = sum((item[1] for item in items))
+  n = random.uniform(0, weight_total)
+  for item, weight in items:
+      if n < weight:
+          return item
+      n = n - weight
+  return item
 
 class HMM:
-'''
-this class contains exactly 3 dictionary objects:
-  start_p - contains keys (representing markov states) referencing the initial probabilities required to get to a specific state
+  '''
+  this class contains exactly 3 dictionary objects:
+    start_p - contains keys (representing markov states) referencing the initial probabilities required to get to a specific state
             if this is unknown, simple assign each state probability 1/n, with n = amount of states
 
-  state_p - contains keys (representing markov states) referencing the probabilities of changing to another state, or staying
+    state_p - contains keys (representing markov states) referencing the probabilities of changing to another state, or staying
             at the same state
 
-  hidden_p - contains keys (representing hidden states) referencing the probabilities of getting to a specific hidden state from any markov state
+    hidden_p - contains keys (representing hidden states) referencing the probabilities of getting to a specific hidden state from any markov state
 
 
-This class also contains specific methods, such as:
-  viterbi_solve(obs) - takes in a sequence of observations and attempts to generate the most likely sequency of markov states corresponding to
+  This class also contains specific methods, such as:
+    viterbi_solve(obs) - takes in a sequence of observations and attempts to generate the most likely sequency of markov states corresponding to
                        the given hidden states. Uses DP, solves in time O((n+m)^2), where n = no. of markov states, and m = no. of hidden states
                        this algorithm is a definite improvement of just brute-force checking every solution, which would be O(2^n)
 
 
 
-In all examples, uppercase letters A B C reference markov states, whereas lowercase letters a b c reference hidden states
-'''
+  In all examples, uppercase letters A B C reference markov states, whereas lowercase letters a b c reference hidden states
+  '''
 
   def __init__(self):
     self.start_p = {}
