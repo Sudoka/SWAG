@@ -34,21 +34,21 @@ class kNN:
   '''
 
   def __init__(self, train_data, k, dist=None):
-    self.vectors = vectors
+    self.train_data = train_data
     self.k = k
     
     #default distance metric is relative difference, not euclidean
     #this is to make ensure that different types of data can be examined in the same vector
     if dist == None:
-      self.dist = lambda x, y: sum([float(abs(x[i]-y[i])) / ((abs(x[i])+abs(y[i]))/2) for i in xrange(len(x)-1)])
+      self.dist = lambda x, y: sum([float(abs(x[i]-y[i])) / ((abs(x[i])+abs(y[i])+.00001)/2) for i in xrange(len(x)-1)])
     else:
       self.dist = dist
 
-  def classify_vector(vector):
+  def classify_vector(self, vector):
     #calculate distances between all training data vectors and the vector to classify
     #and stores them along with the index of the corresponding training vector
     #then sorts, and returns first k labels
-    N = sorted([ ( self.dist(train_data[i], vector), i ) for i in xrange(len(train_data))], key=lambda x: x[0])[:self.k]
+    N = sorted([ ( self.dist(self.train_data[i], vector), self.train_data[i][-1] ) for i in xrange(len(self.train_data))], key=lambda x: x[0])[:self.k]
     label = 0
     for n in N:
       label += n[1]
