@@ -3,6 +3,8 @@ import re
 import sys
 import math
 import random
+sys.path.append('../lib/libsvm/python')
+from svmutil import *
 
 '''
 This program houses the classes to create classifiers by loading a collection of data vectors and labels
@@ -108,6 +110,24 @@ class NB:
     # return +1 or -1 based on max of plus or minus
     if plus > minus: return 1
     return -1
+
+
+class SVM:
+
+  def __init__(self, train_data):
+    features = [t[:-1] for t in train_data]
+    labels = [t[-1] for t in train_data]
+    prob = svm_problem(labels, features)
+    param = svm_parameter('-s 0 -t 2 -q')
+    self.model = svm_train(prob, param)
+
+  def classify_vector(self, v):
+    p_labels, p_acc, p_vals = svm_predict([0], [v[:-1]], self.model, '-q')
+    return int(p_labels[0])
+
+  def classify_data(self, V):
+    return svm_predict([0]*len(V), [v[:-1] for v in V], self.model)[0]
+
 
 class kMpp:
   '''
