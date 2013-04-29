@@ -115,18 +115,27 @@ class NB:
 class SVM:
 
   def __init__(self, train_data):
+    print len(train_data)
+    train_data, self.max_attrs, self.min_attrs = normalize_data(train_data)
+    print len(train_data)
+    
     features = [t[:-1] for t in train_data]
-    labels = [t[-1] for t in train_data]
+    labels = [t[-1] for t in train_data] 
+
     prob = svm_problem(labels, features)
-    param = svm_parameter('-s 0 -t 2 -q')
+    param = svm_parameter('-s 0 -t 0 -q')
     self.model = svm_train(prob, param)
 
   def classify_vector(self, v):
+    v = self.normalize_vector(v)
     p_labels, p_acc, p_vals = svm_predict([0], [v[:-1]], self.model, '-q')
     return int(p_labels[0])
 
   def classify_data(self, V):
     return svm_predict([0]*len(V), [v[:-1] for v in V], self.model)[0]
+
+  def normalize_vector(self, v):
+    return [(v[i]-self.min_attrs[i])/(self.max_attrs[i]-self.min_attrs[i] + .00001) for i in xrange(len(v)-1)] + [v[-1]]
 
 
 class kMpp:
@@ -301,3 +310,35 @@ class HMM:
       #we adjust for this
       path.append((path_max, tmp_path[path_max]*path[-1][1]))
     return path
+
+'''
+given a data distribution D, normalize each attribute (except last element, that
+is reserved for labels). normalize value x from attribute a as follows:
+norm_x_a = x_a-min_a/(max_a-min_a)
+
+Returns:
+modified data distribution that is normalized
+list containing maximum attribute values
+list containing minimum attribute values
+'''
+def normalize_data(D):
+  _D = []
+
+  #init values
+  max_attrs = D[0]
+  min_attrs = D[0]
+  
+  #find max and min attribute values
+  for d in D:
+    #skip over labels
+    for i in xrange(len(d)-1):
+      if d[i] < min_attrs[i]: min_attrs[i] = d[i]
+      if d[i] > max_attrs[i]: max_attrs[i] = d[i]
+
+  for i in xrange(len(D)):
+    for j in xrange(len(D[0])-1):
+      #normalize
+      D[i][j] = ( D[i][j]-min_attrs[j] ) / ( max_attrs[j]-min_attrs[j] + .00001 )
+
+  return (D, max_attrs, min_attrs)
+    

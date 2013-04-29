@@ -7,7 +7,18 @@ from matplotlib import pyplot as plt
 
 def main():
   T = pickle.load(open('../data/data_pickles/pd.pickle', 'r'))
-  benchmark(T)
+  x0, y0 = benchmark(T)
+  T = pickle.load(open('../data/data_pickles/bc.pickle', 'r'))
+  x1, y1 = benchmark(T)
+  T = pickle.load(open('../data/data_pickles/hd.pickle', 'r'))
+  x2, y2 = benchmark(T)
+
+  plt.plot(x0, y0)
+  plt.plot(x1, y1)
+  plt.plot(x2, y2)
+  plt.show()
+
+  
 
 
 def benchmark(T):
@@ -24,8 +35,7 @@ def benchmark(T):
         correct += 1.0
       total += 1
     y.append(correct/total)
-  plt.plot(lims, y)
-  plt.show()
+  return (lims, y)
   
 
 # Standard boilerplate to call the main() function.
