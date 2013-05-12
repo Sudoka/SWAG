@@ -35,7 +35,7 @@ class kNN:
 
   '''
 
-  def __init__(self, train_data, k, dist=None):
+  def __init__(self, train_data, k=None, dist=None):
     self.train_data = train_data
     self.k = k
     
@@ -46,10 +46,53 @@ class kNN:
     else:
       self.dist = dist
 
+    # hit default case, k is selected from [1, 3, 5, 7, 9]
+    if self.k == None:
+      self.find_k()
+    #k was specified
+    else:
+      self.train_error = self.get_train_error()
+
+
+  def find_k(self):
+    best_k = -1
+    best_error = 0.0
+    
+    # iteratively search through these values of k to find best training error
+    for k in [1, 3, 5, 7, 9]:
+      self.k = k
+      err = self.get_train_error()
+      if err > best_error:
+        best_k = k
+        best_error = err
+
+    # update values of k and train_error accordingly
+    self.k = best_k
+    self.train_error = best_error
+
+
+  def get_train_error(self):
+    total = len(self.train_data)
+    num_right = 0.0
+
+    for i in xrange(total):
+      # we must remove the vector itself from the training data, or else it would skew results
+      target = self.train_data.pop(i)
+      
+      if self.classify_vector(target) == target[-1]: num_right += 1.0
+
+      # add vector back
+      self.train_data.append(target)
+
+    return num_right/total
+
   def classify_vector(self, vector):
-    #calculate distances between all training data vectors and the vector to classify
-    #and stores them along with the index of the corresponding training vector
-    #then sorts, and returns first k labels
+    '''
+    calculate distances between all training data vectors and the vector to classify
+    and stores them along with the index of the corresponding training vector
+    then sorts, and returns first k labels, which we then sum to get mode label
+    '''
+
     N = sorted([ ( self.dist(self.train_data[i], vector), self.train_data[i][-1] ) for i in xrange(len(self.train_data))], key=lambda x: x[0])[:self.k]
     label = 0
     for n in N:
@@ -79,7 +122,7 @@ class NB:
             P[j][train_data[i][j]][0] += 1
             P[j][train_data[i][j]][1] += 1
           else:
-            P[train_data[i][j]][1] += 1
+            P[j][train_data[i][j]][1] += 1
         else:
           if train_data[i][-1] > 0:
             P[j][train_data[i][j]] = [1, 1]
@@ -95,6 +138,15 @@ class NB:
           P[i][k] = 1.0/100.0
 
     self.P = P
+    self.train_error = self.get_train_error(train_data)
+
+  def get_train_error(self, train_data):
+    total = 0.0
+    for vector in train_data:
+      if self.classify_vector(vector) == vector[-1]: total += 1
+    return total / len(train_data)
+      
+    
 
   def classify_vector(self, vector):
     plus = 0
@@ -105,7 +157,7 @@ class NB:
     for i in xrange(len(vector)-1):
       if vector[i] in self.P[i]:
         plus += math.log(self.P[i][vector[i]])
-        minus += math.log(1 - self.P[i][vector[i]])
+        minus += math.log((1 - self.P[i][vector[i]]) + 1.0/100)
 
     # return +1 or -1 based on max of plus or minus
     if plus > minus: return 1
@@ -114,20 +166,16 @@ class NB:
 
 class SVM:
 
-  def __init__(self, train_data):
-    print len(train_data)
-    train_data, self.max_attrs, self.min_attrs = normalize_data(train_data)
-    print len(train_data)
-    
+  def __init__(self, train_data):    
     features = [t[:-1] for t in train_data]
     labels = [t[-1] for t in train_data] 
 
     prob = svm_problem(labels, features)
-    param = svm_parameter('-s 0 -t 0 -q')
+    param = svm_parameter('-s 0 -t 2 -q')
     self.model = svm_train(prob, param)
+    self.train_error = self.get_train_error(train_data)
 
   def classify_vector(self, v):
-    v = self.normalize_vector(v)
     p_labels, p_acc, p_vals = svm_predict([0], [v[:-1]], self.model, '-q')
     return int(p_labels[0])
 
@@ -137,6 +185,11 @@ class SVM:
   def normalize_vector(self, v):
     return [(v[i]-self.min_attrs[i])/(self.max_attrs[i]-self.min_attrs[i] + .00001) for i in xrange(len(v)-1)] + [v[-1]]
 
+  def get_train_error(self, train_data):
+    total = 0.0
+    for vector in train_data:
+      if vector[-1] == self.classify_vector(vector): total += 1.0
+    return total / len(train_data)
 
 class kMpp:
   '''
