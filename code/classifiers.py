@@ -52,7 +52,14 @@ class kNN:
     #k was specified
     else:
       self.train_error = self.get_train_error()
+    self.validation_error = 'UNKNOWN'
 
+  def get_info(self):
+    s = 'This classifier is a k-Nearest Neighbors classifier'
+    s += '\n\tTraining Error: ' + str(self.train_error)
+    s += '\n\tChoice of k: ' + str(self.k)
+
+    return s
 
   def find_k(self):
     best_k = -1
@@ -85,6 +92,13 @@ class kNN:
       self.train_data.append(target)
 
     return num_right/total
+
+  def validate(self, val_data):
+    total = len(val_data)
+    right = 0.0
+    for v in val_data:
+      if v[-1] == self.classify_vector(v): right += 1.0
+    self.validation_error = right/total
 
   def classify_vector(self, vector):
     '''
@@ -139,6 +153,16 @@ class NB:
 
     self.P = P
     self.train_error = self.get_train_error(train_data)
+    self.validation_error = 'UNKNOWN'
+    self.binning_threshold = 1.0/100.0
+
+
+  def get_info(self):
+    s = 'This classifier is a Naive Bayes classifier'
+    s += '\n\tTraining Error: ' + str(self.train_error)
+    s += '\n\tBinning Threshold: ' + str(self.binning_threshold) 
+
+    return s
 
   def get_train_error(self, train_data):
     total = 0.0
@@ -171,9 +195,19 @@ class SVM:
     labels = [t[-1] for t in train_data] 
 
     prob = svm_problem(labels, features)
-    param = svm_parameter('-s 0 -t 2 -q')
-    self.model = svm_train(prob, param)
-    self.train_error = self.get_train_error(train_data)
+    self.grid_search(train_data, '-s 0 -t 2 -q', prob)
+    self.kernel_function = 'Radial Basis Function'
+    self.validation_error = 'UNKNOWN'
+
+  def get_info(self):
+    s = 'This classifier is a SVM'
+    s += '\n\tTraining Error: '+ str(self.train_error)
+    s += '\n\tKernel Function: ' + self.kernel_function
+    s += '\n\tMargin Cost: ' + str(self.margin)
+    s += '\n\tGamma Coefficient: ' + str(self.gamma)
+
+    return s
+    
 
   def classify_vector(self, v):
     p_labels, p_acc, p_vals = svm_predict([0], [v[:-1]], self.model, '-q')
@@ -190,6 +224,37 @@ class SVM:
     for vector in train_data:
       if vector[-1] == self.classify_vector(vector): total += 1.0
     return total / len(train_data)
+
+  #a grid search to find optimal values of margin, c, and gamma, g
+  def grid_search(self, train_data, p_string, prob):
+  
+    #values we will search out for optimal c and g
+    C = [2**-5, 2**-3, 2**-1, 2**1, 2**3, 2**5, 2**7, 2**9, 2**11, 2**13, 2**15]
+    G = [2**-15, 2**-13, 2**-11, 2**-9, 2**-7, 2**-5, 2**-3, 2**-1, 2**1, 2**3]
+
+    #max error
+    max_err = 0.0
+    #init param
+    best_param = svm_parameter(p_string)
+    best_c = 0
+    best_g = 0
+
+    for i in xrange(len(C)):
+      for j in xrange(len(G)):
+        param = svm_parameter(p_string + ' -c ' + str(C[i]) + ' -g ' + str(G[j]))
+        self.model = svm_train(prob, param)
+        error = self.get_train_error(train_data)
+        if error > max_err:
+          max_err = error
+          best_param = param
+          best_c = C[i]
+          best_g = G[i]
+
+    self.model = svm_train(prob, best_param)
+    self.margin = best_c
+    self.gamma = best_g
+    self.train_error = max_err
+    
 
 class kMpp:
   '''

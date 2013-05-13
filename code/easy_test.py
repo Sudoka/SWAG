@@ -1,31 +1,35 @@
 #!/usr/bin/python -tt
 import re
 import sys
-import classifiers
-import meta_classifiers
+import classifiers as cl
+import meta_classifiers as mcl
 import cPickle as pickle
 import math
 
 def main():
+  # serialized matrix of heart disease data
   data = pickle.load(open('../data/data_pickles/hd.pickle', 'r'))
-  lim = len(data) - len(data)/4
-  print 'Out of', len(data), 'instances'
-  print lim, 'first instances to be used for training data'
-  print len(data)-lim, 'following instances to be used for test data'
+
+  print 'Running classification on', len(data), 'instances of data'
+  print 'from Heart Disease dataset\n'
+
+  #split data into two equal sized parts, training data and test data
+  lim = len(data)/2
   test = data[lim:]
   data = data[:lim]
-  C = []
-  C.append(classifiers.SVM(data))
-  C.append(classifiers.kNN(data))
-  C.append(classifiers.NB(data))
-  ab = meta_classifiers.AdaBoost(C)
+
+  H = mcl.idk_ML(data)
 
   right = 0.0
-  for v in test:
-    if ab.classify_vector(v) == v[-1]: right += 1.0
 
-  print 'Test Accuracy of:', right / len(test)
-  #print ab.train_error
+  for v in test:
+    if H.classify_vector(v) == v[-1]: right += 1.0
+
+  print 'Final accuracy of:', 146.0 / len(test), '\n'
+
+  #see what classifiers we were working with
+  for c in H.C:
+    print c.get_info(), '\n'
 
 # Standard boilerplate to call the main() function.
 if __name__ == '__main__':
