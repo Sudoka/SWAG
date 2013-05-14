@@ -195,8 +195,17 @@ class SVM:
     labels = [t[-1] for t in train_data] 
 
     prob = svm_problem(labels, features)
-    self.grid_search(train_data, '-s 0 -t 2 -q', prob)
-    self.kernel_function = 'Radial Basis Function'
+    self.model = svm_train(prob, svm_parameter('-s 0 -t 0 -q'))
+    linear_error = self.get_train_error(train_data)
+    self.model = svm_train(prob, svm_parameter('-s 0 -t 2 -q'))
+    radial_error = self.get_train_error(train_data)
+
+    if radial_error > linear_error:
+      self.kernel_function = 'Radial Basis Function'
+      self.rbf_grid_search(train_data, '-s 0 -t 2 -q', prob)
+    else:
+      self.kernel_function = 'Linear'
+      self.linear_search(train_data, '-s 0 -t 0 -q', prob)
     self.validation_error = 'UNKNOWN'
 
   def get_info(self):
@@ -204,7 +213,9 @@ class SVM:
     s += '\n\tTraining Error: '+ str(self.train_error)
     s += '\n\tKernel Function: ' + self.kernel_function
     s += '\n\tMargin Cost: ' + str(self.margin)
-    s += '\n\tGamma Coefficient: ' + str(self.gamma)
+    #gamma coefficient only exists for radial basis function
+    if self.kernel_function[0] == 'R':
+      s += '\n\tGamma Coefficient: ' + str(self.gamma)
 
     return s
     
@@ -225,8 +236,26 @@ class SVM:
       if vector[-1] == self.classify_vector(vector): total += 1.0
     return total / len(train_data)
 
+  def linear_search(self, train_data, p_string, prob):
+    C = [2**-5, 2**-3, 2**-1, 2**1, 2**3, 2**5, 2**7, 2**9, 2**11, 2**13, 2**15]
+    best_error = 0.0
+    best_c = -1
+    for c in C:
+      param = svm_parameter(p_string + ' -c ' + str(c))
+      self.model = svm_train(prob, param)
+      error = self.get_train_error(train_data)
+      if error > best_error:
+        best_error = error
+        best_c = c
+        best_param = param
+
+    self.model = svm_train(prob, param)
+    self.margin = c
+    self.train_error = best_error
+
+
   #a grid search to find optimal values of margin, c, and gamma, g
-  def grid_search(self, train_data, p_string, prob):
+  def rbf_grid_search(self, train_data, p_string, prob):
   
     #values we will search out for optimal c and g
     C = [2**-5, 2**-3, 2**-1, 2**1, 2**3, 2**5, 2**7, 2**9, 2**11, 2**13, 2**15]
@@ -250,8 +279,10 @@ class SVM:
           best_c = C[i]
           best_g = G[i]
 
+    # we relax the margin by a factor of two to deal with overfitting
+    best_param = p_string + ' -c ' + str(2*best_c) + ' -g ' + str(best_g)
     self.model = svm_train(prob, best_param)
-    self.margin = best_c
+    self.margin = 2*best_c
     self.gamma = best_g
     self.train_error = max_err
     

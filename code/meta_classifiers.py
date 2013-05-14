@@ -84,12 +84,12 @@ class AdaBoost:
         if v[-1] == c.classify_vector(v): right += 1.0
       c.validation_error = right / total
 
-def idk_ML(data):
+def idk_ML(data, val_data):
   C = []
   C.append(classifiers.SVM(data))
   C.append(classifiers.kNN(data))
   C.append(classifiers.NB(data))
-  return AdaBoost(C)
+  return AdaBoost(C, val_data = val_data)
 
     
 
