@@ -21,8 +21,9 @@ AdaBoost - iteratively determines which classifier should be weighted the highes
 class AdaBoost:
 
   def __init__(self, C, val_data=None):
+    self.TYPE = 'AdaBoost'
     self.C = C
-    #initialize weights of each classifier to be equiprobably
+    #initialize weights of each classifier to be equiprobable
     self.W = [1.0/len(C)]*len(C)
 
     # training data was specified
@@ -84,12 +85,12 @@ class AdaBoost:
         if v[-1] == c.classify_vector(v): right += 1.0
       c.validation_error = right / total
 
-def idk_ML(data, val_data):
+def idk_ML(data):
   C = []
   C.append(classifiers.SVM(data))
   C.append(classifiers.kNN(data))
   C.append(classifiers.NB(data))
-  return AdaBoost(C, val_data = val_data)
+  return AdaBoost(C)
 
     
 

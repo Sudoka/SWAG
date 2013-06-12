@@ -3,7 +3,7 @@ import re
 import sys
 import math
 import random
-sys.path.append('../lib/libsvm/python')
+sys.path.append('/home/amrit/SWAG/lib/libsvm/python')
 from svmutil import *
 
 '''
@@ -35,17 +35,11 @@ class kNN:
 
   '''
 
-  def __init__(self, train_data, k=None, dist=None):
+  def __init__(self, train_data, k=None,):
     self.train_data = train_data
     self.k = k
+    self.TYPE = 'kNN'
     
-    #default distance metric is relative difference, not euclidean
-    #this is to make ensure that different types of data can be examined in the same vector
-    if dist == None:
-      self.dist = lambda x, y: sum([float(abs(x[i]-y[i])) / ((abs(x[i])+abs(y[i])+.00001)/2) for i in xrange(len(x)-1)])
-    else:
-      self.dist = dist
-
     # hit default case, k is selected from [1, 3, 5, 7, 9]
     if self.k == None:
       self.find_k()
@@ -60,6 +54,12 @@ class kNN:
     s += '\n\tChoice of k: ' + str(self.k)
 
     return s
+
+  def dist(self, x, y):
+    num = 0.0
+    for i in xrange(len(x)-1):
+      num += float(abs(x[i]-y[i])) / ((abs(x[i])+abs(y[i])+.00001)/2)
+    return num
 
   def find_k(self):
     best_k = -1
@@ -124,6 +124,8 @@ class NB:
   
 
   def __init__(self, train_data):
+    self.TYPE = 'NB'
+
     #create a list of dicts for each dimension of vector belonging to training data
     P = [{} for i in xrange(len(train_data[0])-1)]
     for i in xrange(len(train_data)):
@@ -190,7 +192,8 @@ class NB:
 
 class SVM:
 
-  def __init__(self, train_data):    
+  def __init__(self, train_data, kernel_type=None):
+    self.TYPE = 'SVM'
     features = [t[:-1] for t in train_data]
     labels = [t[-1] for t in train_data] 
 
@@ -200,7 +203,7 @@ class SVM:
     self.model = svm_train(prob, svm_parameter('-s 0 -t 2 -q'))
     radial_error = self.get_train_error(train_data)
 
-    if radial_error > linear_error:
+    if radial_error > linear_error or kernel_type == 'RBF':
       self.kernel_function = 'Radial Basis Function'
       self.rbf_grid_search(train_data, '-s 0 -t 2 -q', prob)
     else:
@@ -277,7 +280,7 @@ class SVM:
           max_err = error
           best_param = param
           best_c = C[i]
-          best_g = G[i]
+          best_g = G[j]
 
     # we relax the margin by a factor of two to deal with overfitting
     best_param = p_string + ' -c ' + str(2*best_c) + ' -g ' + str(best_g)
@@ -285,6 +288,14 @@ class SVM:
     self.margin = 2*best_c
     self.gamma = best_g
     self.train_error = max_err
+
+  #returns a string that will be serialized later
+  def store_svm(self, filename):
+    svm_save_model(filename + '-svm.clfr', self.model)
+    self.model = None
+  
+  def load_svm(self, filename):
+    self.model = svm_load_model(filename + '-svm.clfr')
     
 
 class kMpp:
@@ -298,6 +309,7 @@ class kMpp:
   '''
 
   def __init__(self, data, k=None, dist_met=None, iter_max=128):
+    self.TYPE = 'kMpp'
     if k == None:
       k = int(len(data)**.5)
 
@@ -412,6 +424,7 @@ class HMM:
   '''
 
   def __init__(self):
+    self.TYPE = 'HMM'
     self.start_p = {}
     self.state_p = {}
     self.obs_p = {}
