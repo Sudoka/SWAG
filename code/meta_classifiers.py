@@ -85,6 +85,9 @@ class AdaBoost:
         if v[-1] == c.classify_vector(v): right += 1.0
       c.validation_error = right / total
 
+  def get_info(self):
+    return 'This is an AdaBoost instance containing the following algorithms:\n\n' + ''.join(c.get_info() + '\n' for c in self.C)
+
 def idk_ML(data):
   C = []
   C.append(classifiers.SVM(data))

@@ -50,7 +50,7 @@ class kNN:
 
   def get_info(self):
     s = 'This classifier is a k-Nearest Neighbors classifier'
-    s += '\n\tTraining Error: ' + str(self.train_error)
+    s += '\n\tTraining Accuracy: ' + str(self.train_error)
     s += '\n\tChoice of k: ' + str(self.k)
 
     return s
@@ -161,7 +161,7 @@ class NB:
 
   def get_info(self):
     s = 'This classifier is a Naive Bayes classifier'
-    s += '\n\tTraining Error: ' + str(self.train_error)
+    s += '\n\tTraining Accuracy: ' + str(self.train_error)
     s += '\n\tBinning Threshold: ' + str(self.binning_threshold) 
 
     return s
@@ -192,32 +192,67 @@ class NB:
 
 class SVM:
 
-  def __init__(self, train_data, kernel_type=None):
+  def __init__(self, train_data, kernel_type=None, margin=None, gamma=None):
     self.TYPE = 'SVM'
     features = [t[:-1] for t in train_data]
     labels = [t[-1] for t in train_data] 
 
     prob = svm_problem(labels, features)
-    self.model = svm_train(prob, svm_parameter('-s 0 -t 0 -q'))
-    linear_error = self.get_train_error(train_data)
-    self.model = svm_train(prob, svm_parameter('-s 0 -t 2 -q'))
-    radial_error = self.get_train_error(train_data)
 
-    if radial_error > linear_error or kernel_type == 'RBF':
-      self.kernel_function = 'Radial Basis Function'
-      self.rbf_grid_search(train_data, '-s 0 -t 2 -q', prob)
-    else:
-      self.kernel_function = 'Linear'
-      self.linear_search(train_data, '-s 0 -t 0 -q', prob)
-    self.validation_error = 'UNKNOWN'
+
+    #if kernel was not specified, we must pick which kernel to use
+    if kernel_type != 'RBF' and kernel_type != 'Linear':
+      #use 2 fold cross validation to determine which kernel to use
+      cv_prob = svm_problem(labels[:len(labels)/2], features[:len(features)/2])
+      cv_param = svm_parameter('-s 0 -t 2 -q')
+      self.model = svm_train(cv_prob, cv_param)
+      rbf_acc = self.get_train_error(train_data)
+
+      cv_param = svm_parameter('-s 0 -t 0 -q')
+      self.model = svm_train(cv_prob, cv_param)
+      lin_acc = self.get_train_error(train_data)
+
+      print rbf_acc, lin_acc
+
+      if rbf_acc > lin_acc:
+        kernel_type = 'RBF'
+      else:
+        kernel_type = 'Linear'
+
+    if kernel_type == 'RBF':
+      self.kernel_function = kernel_type
+      if margin == None and gamma == None:      
+        self.rbf_grid_search(train_data, '-s 0 -t 2 -q', prob)
+      if margin == None and gamma != None:
+        self.linear_margin_search(train_data, '-s 0 -t 2 -q', prob)
+      if margin != None and gamma == None:
+        self.linear_gamma_search(train_data, '-s 0 -t 2 -q', prob)
+
+      if margin != None and gamma != None:
+        self.margin = margin
+        self.gamma = gamma
+        param = svm_parameter('-s 0 -t 0 -q -g ' + str(self.gamma) + ' -c ' + str(self.margin))
+        self.model = svm_train(prob, param)
+ 
+
+    elif kernel_type == 'Linear':
+      self.kernel_function = kernel_type
+      if margin == None:
+        self.linear_margin_search(train_data, '-s 0 -t 0 -q', prob)
+      else:
+        self.margin = margin
+        param = svm_parameter('-s 0 -t 0 -q -c ' + str(self.margin))
+        self.model = svm_train(prob, param)
+
+    self.train_error = self.get_train_error(train_data)
 
   def get_info(self):
     s = 'This classifier is a SVM'
-    s += '\n\tTraining Error: '+ str(self.train_error)
+    s += '\n\tTraining Accuracy: '+ str(self.train_error)
     s += '\n\tKernel Function: ' + self.kernel_function
     s += '\n\tMargin Cost: ' + str(self.margin)
     #gamma coefficient only exists for radial basis function
-    if self.kernel_function[0] == 'R':
+    if self.kernel_function == 'RBF':
       s += '\n\tGamma Coefficient: ' + str(self.gamma)
 
     return s
@@ -239,7 +274,7 @@ class SVM:
       if vector[-1] == self.classify_vector(vector): total += 1.0
     return total / len(train_data)
 
-  def linear_search(self, train_data, p_string, prob):
+  def linear_margin_search(self, train_data, p_string, prob):
     C = [2**-5, 2**-3, 2**-1, 2**1, 2**3, 2**5, 2**7, 2**9, 2**11, 2**13, 2**15]
     best_error = 0.0
     best_c = -1
@@ -253,8 +288,27 @@ class SVM:
         best_param = param
 
     self.model = svm_train(prob, param)
-    self.margin = c
+    self.margin = best_c
     self.train_error = best_error
+
+  def linear_gamma_search(self, train_data, p_string, prob):
+    G = [2**-15, 2**-13, 2**-11, 2**-9, 2**-7, 2**-5, 2**-3, 2**-1, 2**1, 2**3]
+    p_string += '-c ' + str(self.margin)
+    best_error = 0.0
+    best_g = -1
+    for g in G:
+      param = svm_parameter(p_string + ' -g ' + str(g))
+      self.model = svm_train(prob, param)
+      error = self.get_train_error(train_data)
+      if error > best_error:
+        best_error = error
+        best_g = g
+        best_param = param
+
+    self.model = svm_train(prob, param)
+    self.gamma = best_g
+    self.train_error = best_error
+
 
 
   #a grid search to find optimal values of margin, c, and gamma, g
