@@ -11,6 +11,8 @@ USING SWAG
 ----------
 There are two ways to use SWAG, through a simple GUI interface, or simply by
 invoking code in classifiers.py, meta_classifiers.py, and utils.py directly.
+It is also highly advised to reading the information present in swagguide.pdf
+in order to acclimate yourself with machine learning and how SWAG uses it.
 
 -------------
 USING THE GUI
