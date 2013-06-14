@@ -1,6 +1,8 @@
 -------------------------
 INSTALLATION INSTRUCTIONS
 -------------------------
+Once extracting all files:
+
 1. Navigate to SWAG/lib/libsvm
 2. Run the command 'make'
 3. Navigate to SWAG/lib/easygui
@@ -42,14 +44,14 @@ automatically look for your_filename-svm.clfr.
 -----------------
 USING SOURCE CODE
 -----------------
-All code needed is provided three files:
+All code needed is provided in three files:
 
 	classifiers.py
 		contains multiple learning algorithms, each algorithm is invoked
 		by creating a new object instance using provided constructors
 
 	meta_classifiers.py
-		contains meta classification algoriths, at the present only has
+		contains meta classification algorithms, at the present only has
 		AdaBoost.
 
 	utils.py
