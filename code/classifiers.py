@@ -212,8 +212,6 @@ class SVM:
       self.model = svm_train(cv_prob, cv_param)
       lin_acc = self.get_train_error(train_data)
 
-      print rbf_acc, lin_acc
-
       if rbf_acc > lin_acc:
         kernel_type = 'RBF'
       else:
